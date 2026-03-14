@@ -60,9 +60,9 @@ Em desenvolvimento.
 
 Este projeto está em fase inicial.
 
-1 - cria a lógica do jogo <-- O projeto está aqui 
-2 - criar a rede neural 
-3 - treinar a rede neural 
+- 1 - cria a lógica do jogo <-- O projeto está aqui 
+- 2 - criar a rede neural 
+- 3 - treinar a rede neural 
 
 ---
 
