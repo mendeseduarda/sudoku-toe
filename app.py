@@ -1,8 +1,8 @@
 import random
 
-quadrantes_conquistados = [0] * 9  
-ultimo_quadrante_jogado = -1      
-jogador_atual = 1
+subgrids_conquered = [0] * 9  
+last_played_subgrid = -1      
+current_player = 1
 
 def create_board():
     return [0] * 81
@@ -10,74 +10,87 @@ def create_board():
 def number_is_valid(board, index, num):
     row = index // 9
     col = index % 9
-    
+
+    # Checa Linha
     for i in range(9):
-        if board[row * 9 + i] == num:
+        pos = row * 9 + i
+        if pos != index and board[pos] == num:
             return False
             
+    # Checa Coluna
     for i in range(9):
-        if board[i * 9 + col] == num:
+        pos = i * 9 + col
+        if pos != index and board[pos] == num:
             return False
             
-    start_row, start_col = 3 * (row // 3), 3 * (col // 3)
-    for r in range(start_row, start_row + 3):
-        for c in range(start_col, start_col + 3):
-            if board[r * 9 + c] == num:
-                return False
+    # Checa Quadrante 3x3
+    r_start, c_start = 3 * (row // 3), 3 * (col // 3)
+    for r in range(r_start, r_start + 3):
+        for c in range(c_start, c_start + 3):
+            pos = r * 9 + c
+            if pos != index and board[pos] == num:
+                return False            
     return True
 
-def random_complete_board(board):
-    for i in range(81):
-        if board[i] == 0:
-            nums = list(range(1, 10))
-            random.shuffle(nums)
-            
-            for num in nums:
-                if number_is_valid(board, i, num):
-                    board[i] = num
-                    if random_complete_board(board):
-                        return True
-                    board[i] = 0 
-            return False
-    return True
-
-
-def check_subgrid(board, index):
-    quad_id = (index // 27) * 3 + ((index % 9) // 3)
+def has_valid_move_in_subgrid(board, subgrid_id):
+    r_start, c_start = (subgrid_id // 3) * 3, (subgrid_id % 3) * 3
     indices = []
-    r_start, c_start = (quad_id // 3) * 3, (quad_id % 3) * 3
     for r in range(r_start, r_start + 3):
         for c in range(c_start, c_start + 3):
             indices.append(r * 9 + c)
     
-    if all(board[i] != 0 for i in indices):
-        quadrantes_conquistados[quad_id] = jogador_atual
-        print(f"Quadrante {quad_id} conquistado pelo Jogador {jogador_atual}!")
-    return
+    empty_cells = [i for i in indices if board[i] == 0]
+    
+    if not empty_cells: return True 
 
-def play_is_valid(board, index, num):
-    if index == -1: return True # Sinal para sair
-    if not (0 <= index <= 80): return False
-    if board[index] != 0: return False
+    for idx in empty_cells:
+        for n in range(1, 10):
+            if number_is_valid(board, idx, n):
+                return True 
+    return False
+
+def clean_subgrid(board, subgrid_id):
+    r_start, c_start = (subgrid_id // 3) * 3, (subgrid_id % 3) * 3
+    for r in range(r_start, r_start + 3):
+        for c in range(c_start, c_start + 3):
+            board[r * 9 + c] = 0 
+    print(f"\n--- O Quadrante {subgrid_id} estava travado e foi resetado! ---")
+
+def check_subgrid_conquest(board, index):
+    subgrid_id = (index // 27) * 3 + ((index % 9) // 3)
+    r_start, c_start = (subgrid_id // 3) * 3, (subgrid_id % 3) * 3
+    indices = [r * 9 + c for r in range(r_start, r_start + 3) for c in range(c_start, c_start + 3)]
     
-    quad_atual = (index // 27) * 3 + ((index % 9) // 3)
-    if quad_atual == ultimo_quadrante_jogado:
-        print("Aviso: Quadrante bloqueado! Jogue em outro.")
-        return False
-    
-    return number_is_valid(board, index, num)
+    if all(board[i] != 0 for i in indices):
+        subgrids_conquered[subgrid_id] = current_player
+        print(f"Quadrante {subgrid_id} conquistado pelo Jogador {current_player}!")
+
+def play_is_valid_detailed(board, index, num):
+    if not (0 <= index <= 80): 
+        return False, "Índice fora do tabuleiro (0-80)."
+    if board[index] != 0: 
+        return False, "Esta posição já está ocupada."
+
+    current_subgrid = (index // 27) * 3 + ((index % 9) // 3)
+    if last_played_subgrid != -1 and current_subgrid == last_played_subgrid:
+        return False, f"O Quadrante {current_subgrid} está bloqueado nesta rodada!"
+
+    if not number_is_valid(board, index, num):
+        return False, "Violação de Sudoku (Número repetido na linha, coluna ou bloco)."
+        
+    return True, "Sucesso"
 
 def play_auto(board):
     for i in range(81):
         for n in range(1, 10):
-            if play_is_valid(board, i, n):
+            if play_is_valid_detailed(board, i, n)[0]:
                 return i, n
     return None, None
 
-def win():
-    v = quadrantes_conquistados
-    vitorias = [(0,1,2), (3,4,5), (6,7,8), (0,3,6), (1,4,7), (2,5,8), (0,4,8), (2,4,6)]
-    for a, b, c in vitorias:
+def check_win():
+    v = subgrids_conquered
+    win_conditions = [(0,1,2), (3,4,5), (6,7,8), (0,3,6), (1,4,7), (2,5,8), (0,4,8), (2,4,6)]
+    for a, b, c in win_conditions:
         if v[a] == v[b] == v[c] != 0:
             return v[a]
     return 0
@@ -94,40 +107,76 @@ def print_board(board):
         print(f"{i} {row_str}|")
         if (i + 1) % 3 == 0:
             print("  +-------+-------+-------+")
-    print(f"Status dos Quadrantes: {quadrantes_conquistados}")
-    if ultimo_quadrante_jogado != -1:
-        print(f"Quadrante Bloqueado: {ultimo_quadrante_jogado}")
+    print(f"Status dos Quadrantes: {subgrids_conquered}")
+    if last_played_subgrid != -1:
+        print(f"Quadrante Bloqueado: {last_played_subgrid}")
+    else:
+        print("Bloqueio: NENHUM (Passe Livre Ativo)")
+
+def generate_random_numbers(board):
+    for subgrid_id in range(9):
+        r_start, c_start = (subgrid_id // 3) * 3, (subgrid_id % 3) * 3
+        indices = [r * 9 + c for r in range(r_start, r_start + 3) for c in range(c_start, c_start + 3)]
+        
+        amount = random.randint(2, 5)
+        chosen_pos = random.sample(indices, amount)
+
+        for idx in chosen_pos:
+            nums = list(range(1, 10))
+            random.shuffle(nums)
+            for n in nums:
+                if number_is_valid(board, idx, n):
+                    board[idx] = n
+                    break
 
 # --------
 board = create_board()
+generate_random_numbers(board)
 
 while True:
     print_board(board)
-    print(f"\nVez do Jogador {jogador_atual}")
+    print(f"\nVez do Jogador {current_player}")
     
-    if jogador_atual == 1:
-        entrada = input("Índice (0-80) e Número (Ex: 10 5) ou '-1' para sair: ")
-        if entrada == "-1": break
+    if current_player == 1:
+        entry = input("Índice (0-80) e Número (Ex: 10 5) ou '-1' para sair: ")
+        if entry == "-1": break
         try:
-            idx, num = map(int, entrada.split())
-        except: continue
+            parts = entry.split()
+            idx, num = int(parts[0]), int(parts[1])
+        except:
+            print("[ERRO] Formato inválido! Digite dois números.")
+            continue
     else:
         idx, num = play_auto(board)
+        if idx is None:
+            print("Algoritmo não encontrou jogadas. Pulando turno...")
+            current_player = 2 if current_player == 1 else 1
+            continue
         print(f"Algoritmo jogou no índice {idx} o número {num}")
 
-    if play_is_valid(board, idx, num):
+    is_valid, reason = play_is_valid_detailed(board, idx, num)
+    
+    if is_valid:
         board[idx] = num
-        check_subgrid(board, idx)
-        ultimo_quadrante_jogado = (idx // 27) * 3 + ((idx % 9) // 3)
+        check_subgrid_conquest(board, idx) 
+
+        next_destination = (idx // 27) * 3 + ((idx % 9) // 3) 
         
-        vencedor = win()
-        if vencedor:
+        if not has_valid_move_in_subgrid(board, next_destination):
+            clean_subgrid(board, next_destination)
+            last_played_subgrid = -1 
+            print(f"[SISTEMA] PASSE LIVRE ATIVADO: Próximo joga onde quiser.")
+        else:
+            last_played_subgrid = next_destination
+
+        winner = check_win()
+        if winner:
             print_board(board)
-            print(f"FIM DE JOGO! Jogador {vencedor} venceu a linha de quadrantes!")
+            print(f"\n***** FIM DE JOGO! JOGADOR {winner} VENCEU! *****")
             break
             
-        jogador_atual = 2 if jogador_atual == 1 else 1
+        current_player = 2 if current_player == 1 else 1
     else:
-        print("Jogada inválida!")
+        print(f"[JOGADA INVÁLIDA] {reason}")
 
-print("Execução encerrada.")
+print("Programa finalizado.")
